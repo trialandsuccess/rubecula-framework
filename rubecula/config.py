@@ -1,11 +1,15 @@
 # functions that do configuration, session management + generic functions
 
 import os
+import sys
+
 import yaml
 from shutil import copy2 as cp
 import json
 
 __all__ = ['encode', 'config', 'session']
+
+from rubecula.logging import console
 
 
 def encode(msg):
@@ -17,15 +21,19 @@ def encode(msg):
 
 
 def get_config():
-    # fixme
-
-    if not os.path.exists("config.yaml.example"):
-        return {}
-
     if not os.path.exists('config.yaml'):
-        cp('config.yaml.example', 'config.yaml')
+        if os.path.exists("config.yaml.example"):
+            cp('config.yaml.example', 'config.yaml')
+        else:
+            console.error("No config.yaml or config.yaml.example could be found. "
+                          "Please create one in the project's root folder!")
+            exit(1)
+
     with open('config.yaml') as stream:
         yaml_config = yaml.load(stream, Loader=yaml.FullLoader)
+
+    console.loglevel = yaml_config.get('log')
+
     return yaml_config
 
 

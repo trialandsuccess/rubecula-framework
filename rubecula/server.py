@@ -1,12 +1,13 @@
 import sys
 
-from autobahn.twisted.websocket import WebSocketServerFactory # WebSocketServerProtocol
+from autobahn.twisted.websocket import WebSocketServerFactory  # WebSocketServerProtocol
 from twisted.internet import reactor, ssl
 from twisted.python import log
 from twisted.web.server import Site
 from autobahn.twisted.resource import WebSocketResource
 
 from .config import config
+from .logging import console
 from .ws import Server
 from .web import root
 from ._autoreload import autoreload
@@ -44,6 +45,12 @@ def _serve(arguments):
 
 def serve(args, dev=None):
     if dev:
-        autoreload(_serve, args)
+        import time
+        try:
+            autoreload(_serve, args)
+        except Exception as e:
+            console.error(e)
+            time.sleep(3)
+            serve(args, dev)
     else:
         _serve(args)

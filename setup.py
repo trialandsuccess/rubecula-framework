@@ -1,8 +1,8 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name='rubecula',
-    version='0.1.1',
+    version='0.1.2',
     packages=['rubecula'],
     install_requires=[
         'twisted',
@@ -13,5 +13,6 @@ setup(
         'pyyaml',
         'jinja2',
         'andi',
+        'rich',
     ],
 )

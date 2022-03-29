@@ -61,16 +61,23 @@ class Args(dict, Inject):
 class Template(Resource):
     def __init__(self, func, template):
         super().__init__()
+
+        if '.' not in template:
+            template = template + '.html'
+
         self.template = template
         self.function = func
 
     def render(self, request):
         args = Args(request.args)
         func = get_method(self.function, [request, args])
+
         ctx = func()
         ctx["__globals"] = json.dumps(ctx)
         env = Environment(loader=FileSystemLoader('view'))
-        template = env.get_template(f'{self.template}.html')
+
+        template = env.get_template(self.template)
+
         output_from_parsed_template = template.render(**ctx)
         return encode(output_from_parsed_template)
 
@@ -82,6 +89,9 @@ def expose_static(alias=None, template=True):
 
             filename = name if template in (True, False, None) else template
 
+            if '.' not in filename:
+                filename += '.html'
+
             if alias and not callable(alias):
                 where = alias
             else:
@@ -90,7 +100,7 @@ def expose_static(alias=None, template=True):
             if template:
                 contents = Template(func, filename)
             else:
-                contents = StaticFile(func, f'view/{filename}.html')
+                contents = StaticFile(func, f'view/{filename}')
 
             root.putChild(where.encode(), contents)
 
@@ -124,21 +134,48 @@ def _add_page(root, name, function_post=None, function_get=None):
                 return HTTP_CODE(405, "Method 'GET' not allowed.", request)
             return _safe_execute(function_get, request)
 
-    root.putChild(name.encode(), Page())
+    p = Page()
+
+    # allow trailing slash:
+    p.putChild(b"", p)
+
+    root.putChild(name.encode(), p)
 
 
-def expose_web(*method):
+def expose_web(method=None, alias=None):
     def wrapper(f):
         def inner_wrapper(*a, **kw):
             f(*a, **kw)
 
-        request_method = method[0].lower() if method else 'get'
+        request_method = method.lower() if method and isinstance(method, str) else 'get'
+
+        kwargs = {}
+
         if request_method == 'post':
-            _add_page(root, f.__name__, function_post=f)
+            kwargs['function_post'] = f
         elif request_method == 'get':
-            _add_page(root, f.__name__, function_get=f)
+            kwargs['function_get'] = f
         else:
-            raise NotImplementedError('todo: other methods')
+            raise NotImplementedError(f'Method {request_method} not implemented.')
+
+        _add_page(root, f.__name__, **kwargs)
+
+        if f.__name__ == "index":
+            # index is special
+            _add_page(root, "", **kwargs)
+
+        if alias is not None:
+            if not isinstance(alias, (tuple, list)):
+                aliases = [alias]
+            else:
+                aliases = alias
+
+            for a in aliases:
+                _add_page(root, a, **kwargs)
+
         return inner_wrapper
 
-    return wrapper
+    if callable(method):
+        return wrapper(method)
+    else:
+        return wrapper

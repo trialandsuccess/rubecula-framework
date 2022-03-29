@@ -62,7 +62,11 @@ _win = (sys.platform == "win32")
 
 def code_changed():
     global _mtimes, _win
-    for filename in filter(lambda v: v, map(lambda m: getattr(m, "__file__", None), sys.modules.values())):
+
+    code_files = list(filter(lambda v: v, map(lambda m: getattr(m, "__file__", None), sys.modules.values())))
+    code_files.extend(['config.yaml', 'config.example.yaml'])
+
+    for filename in code_files:
         if filename.endswith(".pyc") or filename.endswith(".pyo"):
             filename = filename[:-1]
         if not os.path.exists(filename):
